@@ -1,3 +1,4 @@
+
 # Over/Under 2.5 Goles en Partidos de Fútbol
 
 ## Descripción del Proyecto
@@ -61,6 +62,7 @@ Después de todo el preprocesado, cada partido queda representado por **33 featu
 Los valores numéricos están estandarizados (por eso aparecen negativos y decimales), y las columnas de liga son binarias (solo una vale 1, las demás 0, según la liga del partido).
 
 ## Fase 2: Construccion y evaluación del modelo
+
 ### Estado del arte
  
 La implementación del modelo y la selección de métricas están respaldadas por el siguiente paper:
@@ -69,7 +71,7 @@ La implementación del modelo y la selección de métricas están respaldadas po
  
 El paper evalúa siete modelos distintos (Logistic Regression, XGBoost, Random Forest, SVM, Naive Bayes, Feedforward Neural Network y Vanilla RNN) para el problema de predicción Over/Under 2.5 goles en fútbol. Se tomó como referencia para:
  
-- El tipo de modelo a usar (Feedforward Neural Network).
+- El tipo de modelo a usar (Neural Network).
 - Los hiperparámetros base (arquitectura de 4 capas ocultas, dropout 0.5, batch normalization, Adam con learning rate 0.001).
 - Las métricas de evaluación (accuracy, precision, recall, F1-score, matriz de confusión).
  
@@ -77,22 +79,16 @@ El paper evalúa siete modelos distintos (Logistic Regression, XGBoost, Random F
 
 Los hiperparámetros están basados en el paper de referencia (Atta Mills et al., 2024), con algunos ajustes por el tamaño del dataset.
 
-**Arquitectura:**
+- **4 capas ocultas con 64, 128, 128, 128 unidades** y activación **ReLU**, misma estructura del paper, suficiente para capturar relaciones no lineales entre las features sin sobrecargar la red.
+- **Sigmoid en la capa de salida**, convierte la salida en una probabilidad entre 0 y 1, que nos sirve para clasificación binaria.
 
-- **4 capas ocultas con 64, 128, 128, 128 unidades** y activación **ReLU** — misma estructura del paper, suficiente para capturar relaciones no lineales entre las features sin sobrecargar la red.
-- **Sigmoid en la capa de salida** — convierte la salida en una probabilidad entre 0 y 1, que nos sirve para clasificación binaria.
+- **Dropout 0.5** después de cada capa oculta, apaga aleatoriamente la mitad de las neuronas en cada paso para forzar al modelo a aprender representaciones más robustas y evitar overfitting (usado en el paper).
+- **Batch Normalization** después de cada capa oculta, estabiliza el entrenamiento normalizando las activaciones entre capas (usado en el paper).
 
-**Regularización:**
-
-- **Dropout 0.5** después de cada capa oculta — apaga aleatoriamente la mitad de las neuronas en cada paso para forzar al modelo a aprender representaciones más robustas y evitar overfitting (usado en el paper).
-- **Batch Normalization** después de cada capa oculta — estabiliza el entrenamiento normalizando las activaciones entre capas (usado en el paper).
-
-**Entrenamiento:**
-
-- **Optimizer Adam, learning rate 0.001** — el paper usa Yogi (variante de Adam) con el mismo learning rate; se usó Adam por ser el estándar en Keras y tener comportamiento equivalente.
-- **Loss: binary_crossentropy** — función estándar para clasificación binaria, también usada en el paper.
-- **Batch size 64** — el paper usa 15, pero nuestro dataset es mucho más grande (132,411 vs ~1,400 partidos), por lo que un batch mayor acelera el entrenamiento sin perder calidad.
-- **30 epochs con early stopping (patience 10)** — corta el entrenamiento si la validation accuracy no mejora en 10 epochs consecutivos, evitando overfitting.
+- **Optimizer Adam, learning rate 0.001**, el paper usa Yogi (variante de Adam) con el mismo learning rate; se usó Adam por ser el estándar en Keras y tener comportamiento equivalente.
+- **Loss: binary_crossentropy**, función estándar para clasificación binaria, también usada en el paper.
+- **Batch size 64**, el paper usa 15, pero nuestro dataset es mucho más grande (132,411 vs ~1,400 partidos), por lo que un batch mayor acelera el entrenamiento sin perder calidad.
+- **30 epochs con early stopping (patience 10)**, corta el entrenamiento si la validation accuracy no mejora en 10 epochs consecutivos, evitando overfitting.
  
 ### Métricas seleccionadas
  
@@ -140,7 +136,4 @@ El modelo funciona por encima del baseline aleatorio pero muestra margen claro d
 
 ## Fase 3: Mejorando el modelo
  
-
-
-
 
