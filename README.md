@@ -135,5 +135,10 @@ El paper de Atta Mills et al. (2024) reporta una accuracy de 0.75 con una arquit
 El modelo funciona por encima del baseline aleatorio pero muestra margen claro de mejora, principalmente en la detección de la clase Over. Estas observaciones nos sirven mucho para la siguiente fase, donde se buscará mejorar el recall y el F1-score mediante ajuste de hiperparámetros, posible feature engineering adicional, y comparación entre múltiples versiones del modelo.
 
 ## Fase 3: Mejorando el modelo
- 
+
+
+# Referencias
+> Atta Mills, E. F. E., Deng, Z., Zhong, Z., & Li, J. (2024). *Data-driven prediction of soccer outcomes using enhanced machine and deep learning techniques*. Journal of Big Data, 11(170). https://doi.org/10.1186/s40537-024-01008-2
+
+> reighns. (2021). Titanic: A Complete Beginner's Guide [Notebook de Kaggle]. Kaggle. https://www.kaggle.com/code/reighns/titanic-a-complete-beginner-s-guide
 
