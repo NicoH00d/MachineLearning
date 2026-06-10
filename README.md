@@ -136,6 +136,81 @@ El modelo funciona por encima del baseline aleatorio pero muestra margen claro d
 
 ## Fase 3: Mejorando el modelo
 
+En esta fase se realizaron varios experimentos buscando mejorar las métricas obtenidas en la Fase 2 (accuracy de 55.42%). Se exploraron tres caminos principales: ajuste de hiperparámetros, feature engineering adicional, y prueba de un modelo alternativo.
+
+### Ajuste de hiperparámetros y arquitectura
+
+Como primer intento, se modificaron varios hiperparámetros del modelo original:
+
+- **Dropout** reducido de 0.5 a 0.3, para dejar al modelo aprender un poco más antes de regularizar.
+- **Patience** aumentado de 10 a 20 epochs, para permitir más oportunidades de mejora antes de cortar el entrenamiento.
+- **Epochs** aumentados de 30 a 100, para no limitar la convergencia del modelo.
+- **Arquitectura simplificada** a 2 capas ocultas (64 y 32 unidades) para reducir el número de parámetros y evitar sobreajuste.
+
+A pesar de estos ajustes, la accuracy se mantuvo en torno al 55% (casi igual), lo cual sugirió que el cuello de botella no estaba en la arquitectura sino en la información disponible para el modelo.
+
+### Feature engineering: promedios históricos de goles
+
+Se agregaron nuevas features derivadas a partir del historial de cada equipo. Esto fue gracias a que el rating ELO mide la **fuerza** de un equipo, pero no captura su **estilo de juego** (ofensivo o defensivo). Dos equipos pueden tener el mismo ELO pero uno juega partidos de 4-3 y el otro de 1-0.
+
+Las nuevas features calculadas son:
+
+- `HomeGF_avg` y `HomeGA_avg`: promedio de goles a favor y en contra del equipo local en sus últimos 10 partidos (como local y como visitante).
+- `AwayGF_avg` y `AwayGA_avg`: lo mismo pero para el equipo visitante.
+- `Expected_Goals`: promedio combinado de goles esperados en el partido, calculado como `(HomeGF_avg + HomeGA_avg + AwayGF_avg + AwayGA_avg) / 2`.
+
+Para calcular estos promedios se aplicó una técnica de **rolling window** sobre el dataset ordenado cronológicamente, usando únicamente los partidos pasados de cada equipo (con `shift(1)`) para evitar que el modelo viera información del futuro durante el entrenamiento (lo que sería data leakage). Esta es una práctica estándar de feature engineering recomendada por claude.ai de Anthropic, para datos temporales en problemas de predicción deportiva.
+
+El resultado del entrenamiento con estas features adicionales fue de 55.32% de accuracy, prácticamente idéntico al modelo original. Al revisar las correlaciones de las nuevas features con el target, se observó que la más predictiva (`Expected_Goals`) tiene apenas una correlación de 0.10, lo cual es una señal débil. Aunque las features sí aportan información, no es suficientemente fuerte para mover significativamente el rendimiento del modelo.
+
+### Modelo alternativo: XGBoost
+
+Como tercera estrategia se probó **XGBoost**, uno de los siete modelos comparados en el paper de referencia (Atta Mills et al., 2024). XGBoost es un modelo basado en árboles de decisión potenciados (gradient boosting) que suele funcionar muy bien con datos tabulares, a veces incluso mejor que las redes neuronales en este tipo de problemas.
+
+Se entrenó con hiperparámetros estándar mencionados en el paper (500 árboles, profundidad máxima 5, learning rate 0.05) sobre las mismas features que el modelo de red neuronal, incluyendo las nuevas features históricas.
+
+**Comparación de resultados:**
+
+| Métrica          | Red Neuronal | XGBoost |
+| ---------------- | ------------ | ------- |
+| Accuracy         | 55.32%       | 55.35%  |
+| Precision (Over) | 56.41%       | 55.11%  |
+| Recall (Over)    | 37.39%       | 46.13%  |
+| F1-score (Over)  | 44.97%       | 50.22%  |
+
+XGBoost obtuvo prácticamente la misma accuracy que la red neuronal, pero con una mejora considerable en F1-score (50.22% vs 44.97%) gracias a un recall mucho más alto (46.13% vs 37.39%). En otras palabras, XGBoost es un modelo más balanceado que detecta correctamente más partidos Over, mientras que la red neuronal tiende a ser excesivamente conservadora y predice Under con demasiada frecuencia.
+
+XGBoost también permitió analizar qué features son más importantes para el modelo. Las 10 más predictivas fueron:
+
+1. Liga_N1 (Eredivisie, conocida por sus partidos goleadores)
+2. Liga_SP2 (Segunda División española)
+3. Expected_Goals (la feature derivada que se agregó)
+4. Liga_D2 (Bundesliga 2)
+5. Liga_D1 (Bundesliga)
+6. EloDiff
+7. Liga_F2 (Ligue 2)
+8. Liga_G1 (Liga griega)
+9. Liga_T1 (Liga turca)
+10. Liga_NOR (Liga noruega)
+
+Esto confirma que la liga es uno de los factores más predictivos para Over/Under: hay ligas con tendencias muy marcadas hacia partidos goleadores o defensivos.
+
+### Interpretación final
+
+El hecho de que tanto la red neuronal como XGBoost toparan en el mismo techo de accuracy (~55.3%) es una conclusión importante: el límite no está en el modelo, sino en la información disponible en el dataset. Ambos modelos están extrayendo prácticamente toda la informacion posible de las features que tenemos.
+
+El paper de referencia logra 75% de accuracy gracias a 28 features adicionales construidas con conocimiento de dominio profundo (tasa de conversión, expected goals reales de plataformas como Opta, estado del equipo, descansos entre partidos, etc.), técnicas de balanceo sofisticadas (SVM-SMOTE) y tuning de hiperparámetros con Bayesian optimization. Estas herramientas requieren datos premium y tiempo de investigación que están fuera del alcance del proyecto.
+
+Adicionalmente, la predicción de resultados de fútbol tiene un techo natural debido a la aleatoriedad inherente del deporte (rebotes, penales dudosos, expulsiones tempranas). Incluso los bookmakers profesionales con modelos altamente sofisticados rondan el 60-65% de accuracy en este mercado.
+
+## Conclusión general
+
+Este proyecto desarrolló un modelo de clasificación binaria para predecir si un partido de fútbol tendrá más de 2.5 goles, recorriendo el ciclo completo de un proyecto de machine learning: obtención del dataset, preprocesado, construcción del modelo, evaluación con métricas apropiadas, y experimentación con distintas alternativas para intentar mejorar los resultados.
+
+El modelo final, basado en XGBoost, alcanzó una accuracy de 55.35% y un F1-score de 50.22% sobre 26,483 partidos de test. Aunque la accuracy queda por debajo del 75% reportado en el paper de referencia, el resultado supera el baseline de predecir siempre la clase mayoritaria (51%) y demuestra que las features seleccionadas (rating ELO, forma reciente, liga y promedios históricos de goles) sí contienen información predictiva sobre el resultado de un partido.
+
+La conclusión más valiosa del proyecto no es el número final de accuracy, sino el entendimiento del techo natural del problema. Tanto la red neuronal como XGBoost convergieron al mismo nivel de desempeño a pesar de usar arquitecturas muy distintas, lo que indica que el límite no está en el modelo sino en la información disponible. Para superar este techo se requerirían features más sofisticadas (expected goals reales, estado físico del equipo, motivación, descanso entre partidos), técnicas de balanceo y tuning sistemático de hiperparámetros, recursos que están fuera del alcance de este proyecto académico.
+
 
 # Referencias
 > Atta Mills, E. F. E., Deng, Z., Zhong, Z., & Li, J. (2024). *Data-driven prediction of soccer outcomes using enhanced machine and deep learning techniques*. Journal of Big Data, 11(170). https://doi.org/10.1186/s40537-024-01008-2
